@@ -33,6 +33,14 @@ st.markdown("<h1 class='main-header'>💬 LLM チャットボット</h1>", unsaf
 with st.sidebar:
     st.header("⚙️ 設定")
     
+    # 専門家モード選択
+    expert_mode = st.selectbox(
+        "専門家モード:",
+        ["汎用AI", "プログラミング専門家", "医療コンサルタント", "ビジネスアドバイザー", "教育専門家", "法律コンサルタント"],
+        index=0,
+        help="専門家として振る舞うモードを選択"
+    )
+    
     # モデル選択
     model = st.radio(
         "LLM モデルを選択:",
@@ -61,8 +69,74 @@ with st.sidebar:
     
     st.divider()
     st.markdown("### ℹ️ 情報")
+    st.markdown(f"**モード:** {expert_mode}")
     st.markdown(f"**モデル:** {model}")
     st.markdown(f"**温度:** {temperature}")
+
+
+# 専門家システムプロンプトの定義
+def get_system_prompt(expert_mode):
+    """専門家モードに応じたシステムプロンプトを返す"""
+    prompts = {
+        "汎用AI": "あなたは役立つAIアシスタントです。ユーザーの質問に丁寧に答えてください。",
+        
+        "プログラミング専門家": """あなたは経験豊富なプログラミング専門家です。以下の原則に従ってください：
+
+- コードの品質と効率を重視
+- ベストプラクティスを説明
+- 複数の解決策を提案可能
+- デバッグや最適化のアドバイスを提供
+- 最新の技術トレンドを考慮
+- セキュリティを意識したコーディングを推奨
+
+ユーザーのプログラミングに関する質問に対して、専門的な視点から回答してください。""",
+        
+        "医療コンサルタント": """あなたは経験豊富な医療コンサルタントです。以下の原則に従ってください：
+
+- 医療アドバイスは一般的な情報提供のみ
+- 緊急時は医療機関を受診するよう勧める
+- 症状の詳細な診断は行わない
+- 健康管理の一般的なアドバイスを提供
+- 予防医療の重要性を強調
+- 信頼できる情報源を推奨
+
+重要: 私は医師ではありません。医療的な緊急事態の場合は、必ず医療専門家に相談してください。""",
+        
+        "ビジネスアドバイザー": """あなたは経験豊富なビジネスコンサルタントです。以下の原則に従ってください：
+
+- 戦略的な視点からアドバイス
+- データ駆動型の意思決定を重視
+- リスクと機会のバランスを考慮
+- 持続可能な成長を重視
+- イノベーションと効率化を推奨
+- 倫理的・法的側面を考慮
+
+ビジネス戦略、マーケティング、財務、オペレーションに関する専門的なアドバイスを提供します。""",
+        
+        "教育専門家": """あなたは経験豊富な教育専門家です。以下の原則に従ってください：
+
+- 個別最適化された学習を重視
+- アクティブラーニングを推奨
+- 批判的思考力の育成を重視
+- 多様な学習スタイルに対応
+- テクノロジーの効果的な活用
+- 継続的な評価とフィードバック
+
+学習方法、教材開発、教育技術、キャリア開発に関する専門的なアドバイスを提供します。""",
+        
+        "法律コンサルタント": """あなたは経験豊富な法律コンサルタントです。以下の原則に従ってください：
+
+- 法的アドバイスは一般的な情報提供のみ
+- 具体的なケースでは弁護士に相談を勧める
+- 最新の法改正を考慮
+- リスクと法的責任を明確に説明
+- 予防法務の重要性を強調
+- 信頼できる法的リソースを推奨
+
+重要: 私は弁護士ではありません。法的問題については、必ず資格を持つ弁護士に相談してください。"""
+    }
+    
+    return prompts.get(expert_mode, prompts["汎用AI"])
 
 
 # セッション状態の初期化
@@ -85,8 +159,15 @@ def display_messages():
 def get_llm_response(user_message):
     """LLMからレスポンスを取得"""
     try:
-        # メッセージを履歴に追加
-        st.session_state.messages.append({
+        # システムプロンプトを取得
+        system_prompt = get_system_prompt(expert_mode)
+        
+        # メッセージ履歴の準備（システムプロンプトを先頭に）
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(st.session_state.messages)
+        
+        # ユーザー入力メッセージを追加
+        messages.append({
             "role": "user",
             "content": user_message
         })
@@ -94,7 +175,7 @@ def get_llm_response(user_message):
         # APIを呼び出し
         response = client.chat.completions.create(
             model=model,
-            messages=st.session_state.messages,
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens
         )
@@ -102,7 +183,11 @@ def get_llm_response(user_message):
         # レスポンスを取得
         assistant_message = response.choices[0].message.content
         
-        # 履歴に追加
+        # 履歴に追加（システムプロンプトは含めない）
+        st.session_state.messages.append({
+            "role": "user",
+            "content": user_message
+        })
         st.session_state.messages.append({
             "role": "assistant",
             "content": assistant_message
