@@ -113,7 +113,5 @@ def get_llm_response(chat_message):
     # LLMレスポンスを会話履歴に追加
     st.session_state.chat_history.extend([HumanMessage(content=chat_message), llm_response["answer"]])
 
-    chunk_size=2000
-    chunk_overlap=300
     
 return llm_response
