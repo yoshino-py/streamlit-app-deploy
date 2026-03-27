@@ -220,8 +220,7 @@ def file_load(path, docs_all):
         docs = loader.load()
         docs_all.extend(docs)
 
-    elif file.endswith(".txt"):
-    loader = TextLoader(file_path)
+
 
 
 def adjust_string(s):
